@@ -1,51 +1,28 @@
-#
-# Builder
-#
-FROM abiosoft/caddy:builder as builder
+FROM alpine:latest
+MAINTAINER Sweet
 
-ARG version="1.0.0"
-ARG plugins="git,cors,realip,expires,cache,minify,nobots,github.com/caddyserver/dnsproviders/tree/master/cloudflare"
-ARG enable_telemetry="true"
+LABEL caddy_version="1.0.0" architecture="amd64"
 
-# process wrapper
-RUN go get -v github.com/abiosoft/parent
+ARG plugins=http.git,http.cors,http.realip,http.expires,http.cache,http.minify,http.nobots,tls.dns.cloudflare
 
-RUN VERSION=${version} PLUGINS=${plugins} ENABLE_TELEMETRY=${enable_telemetry} /bin/sh /usr/bin/builder.sh
-
-#
-# Final stage
-#
-FROM alpine:3.8
-LABEL maintainer "Abiola Ibrahim <abiola89@gmail.com>"
-
-ARG version="1.0.0"
-LABEL caddy_version="$version"
-
-# Let's Encrypt Agreement
-ENV ACME_AGREE="false"
-
-# Telemetry Stats
-ENV ENABLE_TELEMETRY="$enable_telemetry"
-
-RUN apk add --no-cache openssh-client git
+RUN apk add --no-cache \
+        git \
+        tar \
+        curl
 
 # install caddy
-COPY --from=builder /install/caddy /usr/bin/caddy
-
-# validate install
-RUN /usr/bin/caddy -version
-RUN /usr/bin/caddy -plugins
+RUN curl --silent --show-error --fail --location \
+      --header "Accept: application/tar+gzip, application/x-gzip, application/octet-stream" -o - \
+      "https://caddyserver.com/download/linux/amd64?plugins=${plugins}&license=personal&telemetry=on" \
+    | tar --no-same-owner -C /usr/bin/ -xz caddy \
+ && chmod 0755 /usr/bin/caddy \
+ && /usr/bin/caddy -version
 
 EXPOSE 80 443 2015
 VOLUME /root/.caddy /srv
 WORKDIR /srv
 
 COPY Caddyfile /etc/Caddyfile
-COPY index.html /srv/index.html
 
-# install process wrapper
-COPY --from=builder /go/bin/parent /bin/parent
-
-ENTRYPOINT ["/bin/parent", "caddy"]
-CMD ["--conf", "/etc/Caddyfile", "--log", "stdout", "--agree=$ACME_AGREE"]
-
+ENTRYPOINT ["/usr/bin/caddy"]
+CMD ["--conf", "/etc/Caddyfile", "--log", "stdout", "--agree"]
