@@ -1,7 +1,7 @@
 FROM alpine:latest
 MAINTAINER Sweet
 
-LABEL caddy_version="1.0.0" architecture="amd64"
+LABEL caddy_version="1.0.4" architecture="amd64"
 
 ARG plugins=http.git,http.cors,http.realip,http.expires,http.cache,http.minify,http.nobots,tls.dns.cloudflare
 
